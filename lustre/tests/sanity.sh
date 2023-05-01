@@ -7083,6 +7083,7 @@ test_56w() {
 	local dir=$DIR/$tdir
 
 	setup_56 $dir $NUMFILES $NUMDIRS "-c $OSTCOUNT" "-c1"
+	stack_trap "rm -rf $dir"
 
 	local stripe_size=$($LFS getstripe -S -d $dir) ||
 		error "$LFS getstripe -S -d $dir failed"
@@ -7684,6 +7685,7 @@ test_56xd() {
 	local layout_after;
 
 	test_mkdir "$dir" || error "cannot create dir $dir"
+	stack_trap "rm -rf $dir"
 	$LFS setstripe $layout_yaml $f_yaml ||
 		error "cannot setstripe $f_yaml with layout $layout_yaml"
 	$LFS getstripe --yaml $f_yaml > $yamlfile
@@ -7720,6 +7722,7 @@ test_56xe() {
 	local layout_after=""
 
 	test_mkdir "$dir" || error "cannot create dir $dir"
+	stack_trap "rm -rf $dir"
 	$LFS setstripe $layout $f_comp ||
 		error "cannot setstripe $f_comp with layout $layout"
 	layout_before=$(get_layout_param $f_comp)
@@ -7752,6 +7755,7 @@ test_56xf() {
 	local fid_after=""
 
 	test_mkdir "$dir" || error "cannot create dir $dir"
+	stack_trap "rm -rf $dir"
 	$LFS setstripe $layout $f_comp ||
 		error "cannot setstripe $f_comp with layout $layout"
 	fid_before=$($LFS getstripe --fid $f_comp)
@@ -7836,6 +7840,7 @@ test_56xg() {
 	# init the file to migrate
 	$LFS setstripe -c1 -i1 $DIR/$tfile ||
 		error "Unable to create $tfile on OST1"
+	stack_trap "rm -f $DIR/$tfile"
 	dd if=/dev/urandom of=$DIR/$tfile bs=1M count=4 status=none ||
 		error "Unable to write on $tfile"
 
@@ -8899,6 +8904,7 @@ test_64e() {
 	local grants=$((wb_round_up + extent_tax))
 
 	$LFS setstripe -c 1 -i 0 $DIR/$tfile  || error "lfs setstripe failed"
+	stack_trap "rm -f $DIR/$tfile"
 
 	# define OBD_FAIL_TGT_NO_GRANT 0x725
 	# make the server not grant more back
@@ -9060,6 +9066,7 @@ test_64h() {
 	$LCTL set_param osc.*OST0000*.grant_shrink_interval=10
 
 	$LFS setstripe -c 1 -i 0 $DIR/$tfile
+	stack_trap "rm -f $DIR/$tfile"
 	dd if=/dev/zero of=$DIR/$tfile bs=1M count=10 oflag=sync
 
 	# drop cache so that coming read would do rpc
@@ -9099,6 +9106,7 @@ test_64i() {
 	remote_ost_nodsh && skip "remote OSTs with nodsh"
 
 	$LFS setstripe -c 1 -i 0 $DIR/$tfile
+	stack_trap "rm -f $DIR/$tfile"
 
 	dd if=/dev/zero of=$DIR/$tfile bs=1M count=64
 
@@ -9545,6 +9553,7 @@ test_69() {
 
 	f="$DIR/$tfile"
 	$LFS setstripe -c 1 -i 0 $f
+	stack_trap "rm -f $f ${f}.2"
 
 	$DIRECTIO write ${f}.2 0 1 || error "directio write error"
 
@@ -9562,7 +9571,6 @@ test_69() {
 	$DIRECTIO read $f 1 1 && error "read succeeded, expect -ENOENT"
 
 	do_facet ost1 lctl set_param fail_loc=0
-	rm -f $f
 }
 run_test 69 "verify oa2dentry return -ENOENT doesn't LBUG ======"
 
@@ -11623,6 +11631,7 @@ test_103b() {
 	declare -a pids
 	local U
 
+	stack_trap "rm -f $DIR/$tfile.*"
 	for U in {0..511}; do
 		{
 		local O=$(printf "%04o" $U)
@@ -13804,6 +13813,7 @@ OLDIFS="$IFS"
 cleanup_130() {
 	trap 0
 	IFS="$OLDIFS"
+	rm -f $DIR/$tfile
 }
 
 test_130a() {
@@ -14025,6 +14035,7 @@ test_130e() {
 
 	local fm_file=$DIR/$tfile
 	$LFS setstripe -S 131072 -c 2 $fm_file || error "setstripe on $fm_file"
+	stack_trap "rm -f $fm_file"
 
 	local num_blks=512
 	local expected_len=$(( (num_blks / 2) * 64 ))
@@ -14896,7 +14907,7 @@ test_150d() {
 
 	[[ "x$DOM" == "xyes" ]] && striping="-L mdt"
 
-	stack_trap "rm -f $DIR/$tfile; wait_delete_completed"
+	stack_trap "rm -f $DIR/$tdir; wait_delete_completed"
 	$LFS setstripe -E1M $striping -E eof -c $OSTCOUNT -S1M $DIR/$tdir ||
 		error "setstripe failed"
 	fallocate -o 1G -l ${OSTCOUNT}m $DIR/$tdir || error "fallocate failed"
@@ -18391,14 +18402,12 @@ test_187a() {
 
 	local file=$dir0/file1
 	dd if=/dev/urandom of=$file count=10 bs=1M conv=fsync
+	stack_trap "rm -f $file"
 	local dv1=$($LFS data_version $file)
 	dd if=/dev/urandom of=$file seek=10 count=1 bs=1M conv=fsync
 	local dv2=$($LFS data_version $file)
 	[[ $dv1 != $dv2 ]] ||
 		error "data version did not change on write $dv1 == $dv2"
-
-	# clean up
-	rm -f $file1
 }
 run_test 187a "Test data version change"
 
@@ -19417,6 +19426,7 @@ test_224c() { # LU-6441
 	#define OBD_FAIL_PTLRPC_CLIENT_BULK_CB3 0x520
 	do_facet ost1 "$LCTL set_param fail_loc=0x520"
 	$LFS setstripe -c 1 -i 0 $DIR/$tfile
+	stack_trap "rm -f $DIR/$tfile"
 	dd if=/dev/zero of=$DIR/$tfile bs=8MB count=1
 	sync
 	do_facet ost1 "$LCTL set_param fail_loc=0"
@@ -20800,6 +20810,7 @@ test_231a()
 	mkdir -p $DIR/$tdir
 	$LFS setstripe -S ${brw_size}M $DIR/$tdir ||
 		error "failed to set stripe with -S ${brw_size}M option"
+	stack_trap "rm -rf $DIR/$tdir"
 
 	# clear the OSC stats
 	$LCTL set_param osc.*.stats=0 &>/dev/null
@@ -20837,6 +20848,7 @@ run_test 231a "checking that reading/writing of BRW RPC size results in one RPC"
 
 test_231b() {
 	mkdir -p $DIR/$tdir
+	stack_trap "rm -rf $DIR/$tdir"
 	local i
 	for i in {0..1023}; do
 		dd if=/dev/zero of=$DIR/$tdir/$tfile conv=notrunc \
@@ -20856,6 +20868,7 @@ test_232a() {
 
 	# ignore dd failure
 	dd if=/dev/zero of=$DIR/$tdir/$tfile bs=1M count=1 || true
+	stack_trap "rm -f $DIR/$tdir/$tfile"
 
 	do_facet ost1 $LCTL set_param fail_loc=0
 	umount_client $MOUNT || error "umount failed"
@@ -20872,6 +20885,7 @@ test_232b() {
 	mkdir -p $DIR/$tdir
 	$LFS setstripe -c1 -i0 $DIR/$tdir/$tfile
 	dd if=/dev/zero of=$DIR/$tdir/$tfile bs=1M count=1
+	stack_trap "rm -f $DIR/$tdir/$tfile"
 	sync
 	cancel_lru_locks osc
 
@@ -21639,6 +21653,7 @@ test_253() {
 	wait_mds_ost_sync
 	wait_delete_completed
 	mkdir $DIR/$tdir
+	stack_trap "rm -rf $DIR/$tdir"
 
 	pool_add $TESTNAME || error "Pool creation failed"
 	pool_add_targets $TESTNAME 0 || error "Pool add targets failed"
@@ -22946,6 +22961,7 @@ test_272b() {
 	local dom=$DIR/$tdir/dom
 	mkdir -p $DIR/$tdir
 	$LFS setstripe -E 1M -L mdt -E -1 -c1 $dom
+	stack_trap "rm -rf $DIR/$tdir"
 
 	local mdtidx=$($LFS getstripe -m $dom)
 	local mdtname=MDT$(printf %04x $mdtidx)
@@ -22988,6 +23004,7 @@ test_272c() {
 	local dom=$DIR/$tdir/$tfile
 	mkdir -p $DIR/$tdir
 	$LFS setstripe -E 1M -L mdt -E -1 -c1 $dom
+	stack_trap "rm -rf $DIR/$tdir"
 
 	local mdtidx=$($LFS getstripe -m $dom)
 	local mdtname=MDT$(printf %04x $mdtidx)
@@ -23175,6 +23192,7 @@ test_275() {
 
 	dd if=/dev/urandom of=$file bs=1M count=2 ||
 		error "failed to create a file"
+	stack_trap "rm -f $file"
 	cancel_lru_locks osc
 
 	#lock 1
@@ -24543,6 +24561,7 @@ test_398a() { # LU-4198
 			 cut -d'.' -f2)
 
 	$LFS setstripe -c 1 -i 0 $DIR/$tfile
+	stack_trap "rm -f $DIR/$tfile"
 	$LCTL set_param ldlm.namespaces.*.lru_size=clear
 
 	# request a new lock on client
