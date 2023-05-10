@@ -215,6 +215,9 @@ BuildRequires: pkgconfig
 %else
 %if "%{_vendor}" == "openEuler"
 BuildRequires: openEuler-rpm-config
+%if %{with ldiskfs}
+BuildRequires: kernel-debugsource
+%endif
 %endif
 BuildRequires: pkg-config
 %endif
