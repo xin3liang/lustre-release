@@ -137,7 +137,7 @@
 # requires want to set a version including epoch
 %global krequires %(echo %{kver} | sed -e 's/\.x86_64$//' -e 's/\.i[3456]86$//' -e 's/-smp$//' -e 's/-bigsmp$//' -e 's/[-.]ppc64$//' -e 's/\.aarch64$//' -e 's/-default$//' -e 's/-%{_flavor}//')
 
-%if "%{_vendor}" == "redhat" || "%{_vendor}" == "fedora" || "%{_vendor}" == "openEuler"
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "fedora" || 0%{?openEuler}
 	%global requires_kmod_name kmod-%{lustre_name}
 	%global requires_kmod_osd_zfs_name kmod-%{lustre_name}-osd-zfs
 	%if %{with lustre_tests}
@@ -177,7 +177,7 @@
 %endif
 
 # openEuler comes with systemd
-%if "%{_vendor}" == "openEuler"
+%if 0%{?openEuler}
 %define with_systemd 1
 %endif
 
@@ -213,7 +213,7 @@ BuildRequires: libtool libyaml-devel zlib-devel libnl3-devel flex bison
 BuildRequires: redhat-rpm-config
 BuildRequires: pkgconfig
 %else
-%if "%{_vendor}" == "openEuler"
+%if 0%{?openEuler}
 BuildRequires: openEuler-rpm-config
 %if %{with ldiskfs}
 BuildRequires: kernel-debugsource
@@ -232,7 +232,7 @@ Provides: lustre-server = %{version}-%{release}
 %endif
 Obsoletes: lustre-client < %{version}
 Provides: lustre-client = %{version}-%{release}
-%if "%{_vendor}" == "redhat" || "%{_vendor}" == "fedora" || "%{_vendor}" == "openEuler"
+%if "%{_vendor}" == "redhat" || "%{_vendor}" == "fedora" || 0%{?openEuler}
 #suse don't support selinux
 BuildRequires: libselinux-devel
 %endif
@@ -242,13 +242,13 @@ BuildRequires: pkgconfig(libselinux) openssl-devel
 %if %{with lustre_modules}
 %if %{with mofed}
 BuildRequires: mlnx-ofa_kernel-devel
-%if "%{_vendor}" == "redhat" || "%{_vendor}" == "openEuler"
+%if "%{_vendor}" == "redhat" || 0%{?openEuler}
 Requires: kmod-mlnx-ofa_kernel
 %else
 Requires: mlnx-ofa_kernel-kmp
 %endif
 %endif
-%if 0%{?rhel} >= 8 || "%{_vendor}" == "openEuler"
+%if 0%{?rhel} >= 8 || 0%{?openEuler}
 BuildRequires: kernel-rpm-macros
 %endif
 BuildRequires: %kernel_module_package_buildreqs
@@ -373,7 +373,7 @@ Provides: lustre-tests = %{version}
 Requires: lustre-iokit
 %endif
 Requires: lustre-devel = %{version}
-%if 0%{?rhel} >= 8 || 0%{?suse_version} >= 1500
+%if 0%{?rhel} >= 8 || 0%{?suse_version} >= 1500 || 0%{?openEuler}
 Requires: python3 >= 3.6.0, python3-PyYAML
 %endif
 %if %{with lustre_modules}
@@ -389,7 +389,7 @@ Requires: attr, rsync, perl, lsof, /usr/bin/getconf
 BuildRequires: mpich-devel
 %endif
 %if "%{mpi_name}" == "openmpi"
-%if "%{_vendor}" == "redhat" || "%{_vendor}" == "openEuler" || 0%{?suse_version} < 1500
+%if "%{_vendor}" == "redhat" || 0%{?openEuler} || 0%{?suse_version} < 1500
 BuildRequires: openmpi-devel
 %else
 BuildRequires: openmpi2-devel
@@ -642,7 +642,7 @@ echo '%{_sysconfdir}/ha.d/resource.d/Lustre' >>lustre.files
 echo '%{_unitdir}/lnet.service' >>lustre.files
 %endif
 
-%if "%{_vendor}" == "redhat" || "%{_vendor}" == "openEuler"
+%if "%{_vendor}" == "redhat" || 0%{?openEuler}
 # The following scripts are Red Hat specific
 %if %{with servers}
 echo '%{_sysconfdir}/init.d/lustre' >>lustre.files
