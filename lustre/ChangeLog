@@ -268,6 +268,7 @@
          vanilla linux 5.4.0  (ZFS + ldiskfs)
          vanilla linux 5.4.21  (ZFS + ldiskfs)
          vanilla linux 5.4.136  (ZFS + ldiskfs)
+         4.19.90-2308.1.0.0212.oe1 (openEuler 20.03 LTS SP3)
          5.10.0-60.94.0.118.oe2203 (openEuler 22.03 LTS)
          5.10.0-136.32.0.108.oe2203sp1 (openEuler 22.03 LTS SP1)
          5.10.0-153.19.0.95.oe2203sp2 (openEuler 22.03 LTS SP2)
@@ -377,6 +378,7 @@
          5.8.0-53             (Ubuntu 20.04.2 HWE)
          5.11.0-31            (Ubuntu 20.04.3 HWE)
          5.11.0               (vanilla kernel.org)
+         4.19.90              (openEuler 20.03 LTS)
          5.10.0               (openEuler 22.03 LTS)
        * Recommended e2fsprogs version: 1.46.5.wc1 or newer
        * Recommended ZFS version: 2.1.5

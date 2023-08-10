@@ -172,7 +172,7 @@ AC_DEFUN([LB_LINUX_RELEASE], [
 		])
 	])
 
-	# Check for openEuler
+	# Check for openEuler 22.03+ kernel which with openEuer version number
 	AS_IF([test "x$KERNEL_FOUND" = "xno"], [
 		AC_CACHE_CHECK([for openEuler kernel version number], lb_cv_openeuler_kernel_version, [
 			lb_cv_openeuler_kernel_version=""
@@ -187,6 +187,20 @@ AC_DEFUN([LB_LINUX_RELEASE], [
 			OPENEULER_KERNEL="yes"
 			KERNEL_FOUND="yes"
 			OPENEULER_VERSION_NO=$lb_cv_openeuler_kernel_version
+		])
+	])
+
+	# Check for openEuler 20.03 kernel which without openEuer version number
+	AS_IF([test "x$KERNEL_FOUND" = "xno"], [
+		AC_CACHE_CHECK([for openEuler kernel signature], lb_cv_openeuler_kernel_sig, [
+			lb_cv_openeuler_kernel_sig=""
+			AS_IF([fgrep -q Euler $LINUX_OBJ/include/linux/kabi.h], [
+				lb_cv_openeuler_kernel_sig="yes"
+			])
+		])
+		AS_IF([test "x$lb_cv_openeuler_kernel_sig" = "xyes"], [
+			OPENEULER_KERNEL="yes"
+			KERNEL_FOUND="yes"
 		])
 	])
 
