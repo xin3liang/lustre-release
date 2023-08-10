@@ -174,6 +174,12 @@ AS_IF([test x$RHEL_KERNEL = xyes], [
 	2203.0) LDISKFS_SERIES="5.10.0-oe2203.series" ;;
 	2203.*) LDISKFS_SERIES="5.10.0-oe2203sp1.series" ;;
 	esac
+
+	AS_IF([test -z "$OPENEULER_VERSION_NO"], [
+		case $LINUXRELEASE in
+		4.19.90-*) LDISKFS_SERIES="4.19.90-oe2003.series" ;;
+		esac
+	])
 ])
 ])
 # Not RHEL/SLES/openEuler or Ubuntu .. probably mainline
