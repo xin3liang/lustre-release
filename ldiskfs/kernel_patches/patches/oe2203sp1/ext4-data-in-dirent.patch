@@ -1,7 +1,7 @@
-From ef3b0235735794064352d9b053802b368ecdfcc9 Mon Sep 17 00:00:00 2001
+From 0ac1aed9c2c4e090bccebcace6913f80098a8d3f Mon Sep 17 00:00:00 2001
 From: Xinliang Liu <xinliang.liu@linaro.org>
-Date: Thu, 11 May 2023 09:57:05 +0000
-Subject: [PATCH] ext4 data in dirent
+Date: Wed, 8 Nov 2023 02:41:00 +0000
+Subject: [PATCH] ext4: data in dirent
 
 this patch implements feature which allows ext4 fs users (e.g. Lustre)
 to store data in ext4 dirent.
@@ -18,9 +18,9 @@ Signed-off-by: Xinliang Liu <xinliang.liu@linaro.org>
  fs/ext4/ext4.h        | 100 +++++++++++++++++++--
  fs/ext4/fast_commit.c |   2 +-
  fs/ext4/inline.c      |   8 +-
- fs/ext4/namei.c       | 201 +++++++++++++++++++++++++++++++++---------
+ fs/ext4/namei.c       | 200 +++++++++++++++++++++++++++++++++---------
  fs/ext4/super.c       |   4 +-
- 6 files changed, 270 insertions(+), 58 deletions(-)
+ 6 files changed, 269 insertions(+), 58 deletions(-)
 
 diff --git a/fs/ext4/dir.c b/fs/ext4/dir.c
 index 70a0f5e..ff7d8c3 100644
@@ -73,10 +73,10 @@ index 70a0f5e..ff7d8c3 100644
  	while (*p) {
  		parent = *p;
 diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index 143ce00..98786d8 100644
+index 0a4ecbe..4c1fbe0 100644
 --- a/fs/ext4/ext4.h
 +++ b/fs/ext4/ext4.h
-@@ -1167,6 +1167,7 @@ struct ext4_inode_info {
+@@ -1172,6 +1172,7 @@ struct ext4_inode_info {
  	__u32 i_csum_seed;
  
  	kprojid_t i_projid;
@@ -84,7 +84,7 @@ index 143ce00..98786d8 100644
  
  	/* Protect concurrent add cluster delayed block and remove block */
  	struct mutex i_clu_lock;
-@@ -1191,6 +1192,7 @@ struct ext4_inode_info {
+@@ -1196,6 +1197,7 @@ struct ext4_inode_info {
   * Mount flags set via mount options or defaults
   */
  #define EXT4_MOUNT_NO_MBCACHE		0x00001 /* Do not use mbcache */
@@ -92,7 +92,7 @@ index 143ce00..98786d8 100644
  #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
  #define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
  #define EXT4_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
-@@ -2086,6 +2088,7 @@ EXT4_FEATURE_INCOMPAT_FUNCS(casefold,		CASEFOLD)
+@@ -2091,6 +2093,7 @@ EXT4_FEATURE_INCOMPAT_FUNCS(casefold,		CASEFOLD)
  					 EXT4_FEATURE_INCOMPAT_FLEX_BG| \
  					 EXT4_FEATURE_INCOMPAT_EA_INODE| \
  					 EXT4_FEATURE_INCOMPAT_MMP | \
@@ -100,7 +100,7 @@ index 143ce00..98786d8 100644
  					 EXT4_FEATURE_INCOMPAT_INLINE_DATA | \
  					 EXT4_FEATURE_INCOMPAT_ENCRYPT | \
  					 EXT4_FEATURE_INCOMPAT_CASEFOLD | \
-@@ -2268,6 +2271,43 @@ struct ext4_dir_entry_tail {
+@@ -2273,6 +2276,43 @@ struct ext4_dir_entry_tail {
  #define EXT4_FT_SYMLINK		7
  
  #define EXT4_FT_MAX		8
@@ -144,7 +144,7 @@ index 143ce00..98786d8 100644
  
  #define EXT4_FT_DIR_CSUM	0xDE
  
-@@ -2278,8 +2318,16 @@ struct ext4_dir_entry_tail {
+@@ -2283,8 +2323,16 @@ struct ext4_dir_entry_tail {
   */
  #define EXT4_DIR_PAD			4
  #define EXT4_DIR_ROUND			(EXT4_DIR_PAD - 1)
@@ -162,7 +162,7 @@ index 143ce00..98786d8 100644
  #define EXT4_MAX_REC_LEN		((1<<16)-1)
  
  /*
-@@ -2746,11 +2794,11 @@ extern int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+@@ -2751,11 +2799,11 @@ extern int ext4_find_dest_de(struct inode *dir, struct inode *inode,
  			     struct buffer_head *bh,
  			     void *buf, int buf_size,
  			     struct ext4_filename *fname,
@@ -176,7 +176,7 @@ index 143ce00..98786d8 100644
  static inline void ext4_update_dx_flag(struct inode *inode)
  {
  	if (!ext4_has_feature_dir_index(inode->i_sb) &&
-@@ -2766,10 +2814,17 @@ static const unsigned char ext4_filetype_table[] = {
+@@ -2771,10 +2819,17 @@ static const unsigned char ext4_filetype_table[] = {
  
  static inline  unsigned char get_dtype(struct super_block *sb, int filetype)
  {
@@ -196,7 +196,7 @@ index 143ce00..98786d8 100644
  }
  extern int ext4_check_all_de(struct inode *dir, struct buffer_head *bh,
  			     void *buf, int buf_size);
-@@ -2965,7 +3020,8 @@ extern int ext4_ind_migrate(struct inode *inode);
+@@ -2970,7 +3025,8 @@ extern int ext4_ind_migrate(struct inode *inode);
  
  /* namei.c */
  extern int ext4_init_new_dir(handle_t *handle, struct inode *dir,
@@ -206,7 +206,7 @@ index 143ce00..98786d8 100644
  extern int ext4_dirblock_csum_verify(struct inode *inode,
  				     struct buffer_head *bh);
  extern int ext4_orphan_add(handle_t *, struct inode *);
-@@ -2976,6 +3032,8 @@ extern struct inode *ext4_create_inode(handle_t *handle,
+@@ -2981,6 +3037,8 @@ extern struct inode *ext4_create_inode(handle_t *handle,
  extern int ext4_delete_entry(handle_t *handle, struct inode * dir,
  			     struct ext4_dir_entry_2 *de_del,
  			     struct buffer_head *bh);
@@ -215,7 +215,7 @@ index 143ce00..98786d8 100644
  extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
  				__u32 start_minor_hash, __u32 *next_hash);
  extern int ext4_search_dir(struct buffer_head *bh,
-@@ -3765,6 +3823,36 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
+@@ -3773,6 +3831,36 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
  	return buffer_uptodate(bh);
  }
  
@@ -253,10 +253,10 @@ index 143ce00..98786d8 100644
  
  #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 diff --git a/fs/ext4/fast_commit.c b/fs/ext4/fast_commit.c
-index 41dcf21..1023ace 100644
+index be768ef..ff0292e 100644
 --- a/fs/ext4/fast_commit.c
 +++ b/fs/ext4/fast_commit.c
-@@ -1547,7 +1547,7 @@ static int ext4_fc_replay_create(struct super_block *sb, struct ext4_fc_tl *tl,
+@@ -1560,7 +1560,7 @@ static int ext4_fc_replay_create(struct super_block *sb, struct ext4_fc_tl *tl,
  			jbd_debug(1, "Dir %d not found.", darg.ino);
  			goto out;
  		}
@@ -266,10 +266,10 @@ index 41dcf21..1023ace 100644
  		if (ret) {
  			ret = 0;
 diff --git a/fs/ext4/inline.c b/fs/ext4/inline.c
-index c2c688c..686d14a 100644
+index baf2878..4667f9a 100644
 --- a/fs/ext4/inline.c
 +++ b/fs/ext4/inline.c
-@@ -1033,7 +1033,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
+@@ -1032,7 +1032,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
  	struct ext4_dir_entry_2 *de;
  
  	err = ext4_find_dest_de(dir, inode, iloc->bh, inline_start,
@@ -278,7 +278,7 @@ index c2c688c..686d14a 100644
  	if (err)
  		return err;
  
-@@ -1041,7 +1041,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
+@@ -1040,7 +1040,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
  	err = ext4_journal_get_write_access(handle, iloc->bh);
  	if (err)
  		return err;
@@ -287,7 +287,7 @@ index c2c688c..686d14a 100644
  
  	ext4_show_inline_dir(dir, iloc->bh, inline_start, inline_size);
  
-@@ -1398,7 +1398,7 @@ int ext4_inlinedir_to_tree(struct file *dir_file,
+@@ -1397,7 +1397,7 @@ int ext4_inlinedir_to_tree(struct file *dir_file,
  			fake.name_len = 1;
  			strcpy(fake.name, ".");
  			fake.rec_len = ext4_rec_len_to_disk(
@@ -296,7 +296,7 @@ index c2c688c..686d14a 100644
  						inline_size);
  			ext4_set_de_type(inode->i_sb, &fake, S_IFDIR);
  			de = &fake;
-@@ -1408,7 +1408,7 @@ int ext4_inlinedir_to_tree(struct file *dir_file,
+@@ -1407,7 +1407,7 @@ int ext4_inlinedir_to_tree(struct file *dir_file,
  			fake.name_len = 2;
  			strcpy(fake.name, "..");
  			fake.rec_len = ext4_rec_len_to_disk(
@@ -306,7 +306,7 @@ index c2c688c..686d14a 100644
  			ext4_set_de_type(inode->i_sb, &fake, S_IFDIR);
  			de = &fake;
 diff --git a/fs/ext4/namei.c b/fs/ext4/namei.c
-index 1537a76..24e1276 100644
+index 1ce7f95..846ceb3 100644
 --- a/fs/ext4/namei.c
 +++ b/fs/ext4/namei.c
 @@ -295,7 +295,8 @@ static unsigned dx_get_count(struct dx_entry *entries);
@@ -319,23 +319,23 @@ index 1537a76..24e1276 100644
  static unsigned dx_node_limit(struct inode *dir);
  static struct dx_frame *dx_probe(struct ext4_filename *fname,
  				 struct inode *dir,
-@@ -439,22 +440,23 @@ static struct dx_countlimit *get_dx_countlimit(struct inode *inode,
+@@ -440,23 +441,23 @@ static struct dx_countlimit *get_dx_countlimit(struct inode *inode,
  {
  	struct ext4_dir_entry *dp;
  	struct dx_root_info *root;
 -	int count_offset;
-+	int count_offset, dot_rec_len, dotdot_rec_len;
++	int count_offset, dotdot_rec_len;
+ 	int blocksize = EXT4_BLOCK_SIZE(inode->i_sb);
+ 	unsigned int rlen = ext4_rec_len_from_disk(dirent->rec_len, blocksize);
  
- 	if (le16_to_cpu(dirent->rec_len) == EXT4_BLOCK_SIZE(inode->i_sb))
+ 	if (rlen == blocksize)
  		count_offset = 8;
--	else if (le16_to_cpu(dirent->rec_len) == 12) {
+-	else if (rlen == 12) {
 -		dp = (struct ext4_dir_entry *)(((void *)dirent) + 12);
+-		if (ext4_rec_len_from_disk(dp->rec_len, blocksize) != blocksize - 12)
 +	else {
-+		dot_rec_len = le16_to_cpu(dirent->rec_len);
-+		dp = (struct ext4_dir_entry *)(((void *)dirent) + dot_rec_len);
- 		if (le16_to_cpu(dp->rec_len) !=
--		    EXT4_BLOCK_SIZE(inode->i_sb) - 12)
-+		    EXT4_BLOCK_SIZE(inode->i_sb) - dot_rec_len)
++		dp = (struct ext4_dir_entry *)(((void *)dirent) + rlen);
++		if (ext4_rec_len_from_disk(dp->rec_len, blocksize) != blocksize - rlen)
  			return NULL;
 -		root = (struct dx_root_info *)(((void *)dp + 12));
 +		dotdot_rec_len = EXT4_DIR_ENTRY_LEN((struct ext4_dir_entry_2 *)dp);
@@ -346,12 +346,12 @@ index 1537a76..24e1276 100644
 -		count_offset = 32;
 -	} else
 -		return NULL;
-+		count_offset = 8 + dot_rec_len + dotdot_rec_len;
++		count_offset = 8 + rlen + dotdot_rec_len;
 +	}
  
  	if (offset)
  		*offset = count_offset;
-@@ -559,11 +561,12 @@ ext4_next_entry(struct ext4_dir_entry_2 *p, unsigned long blocksize)
+@@ -561,11 +562,12 @@ ext4_next_entry(struct ext4_dir_entry_2 *p, unsigned long blocksize)
   */
  struct dx_root_info *dx_get_dx_info(struct ext4_dir_entry_2 *de)
  {
@@ -366,7 +366,7 @@ index 1537a76..24e1276 100644
  
  	return (struct dx_root_info *)de;
  }
-@@ -608,10 +611,16 @@ static inline void dx_set_limit(struct dx_entry *entries, unsigned value)
+@@ -610,10 +612,16 @@ static inline void dx_set_limit(struct dx_entry *entries, unsigned value)
  	((struct dx_countlimit *) entries)->limit = cpu_to_le16(value);
  }
  
@@ -386,7 +386,7 @@ index 1537a76..24e1276 100644
  
  	if (ext4_has_metadata_csum(dir->i_sb))
  		entry_space -= sizeof(struct dx_tail);
-@@ -731,7 +740,7 @@ static struct stats dx_show_leaf(struct inode *dir,
+@@ -733,7 +741,7 @@ static struct stats dx_show_leaf(struct inode *dir,
  				       (unsigned) ((char *) de - base));
  #endif
  			}
@@ -395,7 +395,7 @@ index 1537a76..24e1276 100644
  			names++;
  		}
  		de = ext4_next_entry(de, size);
-@@ -840,11 +849,14 @@ dx_probe(struct ext4_filename *fname, struct inode *dir,
+@@ -842,11 +850,14 @@ dx_probe(struct ext4_filename *fname, struct inode *dir,
  
  	entries = (struct dx_entry *)(((char *)info) + info->info_length);
  
@@ -413,7 +413,7 @@ index 1537a76..24e1276 100644
  		goto fail;
  	}
  
-@@ -1851,7 +1863,7 @@ dx_move_dirents(char *from, char *to, struct dx_map_entry *map, int count,
+@@ -1854,7 +1865,7 @@ dx_move_dirents(char *from, char *to, struct dx_map_entry *map, int count,
  	while (count--) {
  		struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *)
  						(from + (map->offs<<2));
@@ -422,7 +422,7 @@ index 1537a76..24e1276 100644
  		memcpy (to, de, rec_len);
  		((struct ext4_dir_entry_2 *) to)->rec_len =
  				ext4_rec_len_to_disk(rec_len, blocksize);
-@@ -1882,7 +1894,7 @@ static struct ext4_dir_entry_2* dx_pack_dirents(char *base, unsigned blocksize)
+@@ -1885,7 +1896,7 @@ static struct ext4_dir_entry_2* dx_pack_dirents(char *base, unsigned blocksize)
  	while ((char*)de < base + blocksize) {
  		next = ext4_next_entry(de, blocksize);
  		if (de->inode && de->name_len) {
@@ -431,7 +431,7 @@ index 1537a76..24e1276 100644
  			if (de > to)
  				memmove(to, de, rec_len);
  			to->rec_len = ext4_rec_len_to_disk(rec_len, blocksize);
-@@ -2023,14 +2035,16 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+@@ -2026,14 +2037,16 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
  		      struct buffer_head *bh,
  		      void *buf, int buf_size,
  		      struct ext4_filename *fname,
@@ -450,7 +450,7 @@ index 1537a76..24e1276 100644
  	de = (struct ext4_dir_entry_2 *)buf;
  	top = buf + buf_size - reclen;
  	while ((char *) de <= top) {
-@@ -2039,10 +2053,26 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+@@ -2042,10 +2055,26 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
  			return -EFSCORRUPTED;
  		if (ext4_match(dir, fname, de))
  			return -EEXIST;
@@ -478,7 +478,7 @@ index 1537a76..24e1276 100644
  		de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
  		offset += rlen;
  	}
-@@ -2056,12 +2086,12 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+@@ -2059,12 +2088,12 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
  void ext4_insert_dentry(struct inode *inode,
  			struct ext4_dir_entry_2 *de,
  			int buf_size,
@@ -493,7 +493,7 @@ index 1537a76..24e1276 100644
  	rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
  	if (de->inode) {
  		struct ext4_dir_entry_2 *de1 =
-@@ -2075,6 +2105,11 @@ void ext4_insert_dentry(struct inode *inode,
+@@ -2078,6 +2107,11 @@ void ext4_insert_dentry(struct inode *inode,
  	ext4_set_de_type(inode->i_sb, de, inode->i_mode);
  	de->name_len = fname_len(fname);
  	memcpy(de->name, fname_name(fname), fname_len(fname));
@@ -505,7 +505,7 @@ index 1537a76..24e1276 100644
  }
  
  /*
-@@ -2092,14 +2127,19 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
+@@ -2095,14 +2129,19 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
  {
  	unsigned int	blocksize = dir->i_sb->s_blocksize;
  	int		csum_size = 0;
@@ -527,7 +527,7 @@ index 1537a76..24e1276 100644
  		if (err)
  			return err;
  	}
-@@ -2111,7 +2151,10 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
+@@ -2114,7 +2153,10 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
  	}
  
  	/* By now the buffer is marked for journaling */
@@ -539,7 +539,7 @@ index 1537a76..24e1276 100644
  
  	/*
  	 * XXX shouldn't update any times until successful
-@@ -2217,7 +2260,8 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
+@@ -2228,7 +2270,8 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
  
  	dx_set_block(entries, 1);
  	dx_set_count(entries, 1);
@@ -549,7 +549,7 @@ index 1537a76..24e1276 100644
  
  	/* Initialize as for dx_probe */
  	fname->hinfo.hash_version = dx_info->hash_version;
-@@ -2267,6 +2311,8 @@ static int ext4_update_dotdot(handle_t *handle, struct dentry *dentry,
+@@ -2278,6 +2321,8 @@ static int ext4_update_dotdot(handle_t *handle, struct dentry *dentry,
  	struct buffer_head *dir_block;
  	struct ext4_dir_entry_2 *de;
  	int len, journal = 0, err = 0;
@@ -558,7 +558,7 @@ index 1537a76..24e1276 100644
  
  	if (IS_ERR(handle))
  		return PTR_ERR(handle);
-@@ -2292,11 +2338,16 @@ static int ext4_update_dotdot(handle_t *handle, struct dentry *dentry,
+@@ -2303,11 +2348,16 @@ static int ext4_update_dotdot(handle_t *handle, struct dentry *dentry,
  			goto out_journal;
  
  		journal = 1;
@@ -578,7 +578,7 @@ index 1537a76..24e1276 100644
  	de = (struct ext4_dir_entry_2 *)
  			((char *) de + le16_to_cpu(de->rec_len));
  	if (!journal) {
-@@ -2313,7 +2364,12 @@ static int ext4_update_dotdot(handle_t *handle, struct dentry *dentry,
+@@ -2324,7 +2374,12 @@ static int ext4_update_dotdot(handle_t *handle, struct dentry *dentry,
  		assert(le16_to_cpu(de->rec_len) >= EXT4_DIR_REC_LEN(2));
  	de->name_len = 2;
  	strcpy(de->name, "..");
@@ -592,7 +592,7 @@ index 1537a76..24e1276 100644
  
  out_journal:
  	if (journal) {
-@@ -2351,6 +2407,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
+@@ -2362,6 +2417,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
  	ext4_lblk_t block, blocks;
  	int	csum_size = 0;
  
@@ -600,7 +600,7 @@ index 1537a76..24e1276 100644
  	if (ext4_has_metadata_csum(inode->i_sb))
  		csum_size = sizeof(struct ext4_dir_entry_tail);
  
-@@ -2918,37 +2975,70 @@ err_unlock_inode:
+@@ -2929,37 +2985,70 @@ err_unlock_inode:
  	return err;
  }
  
@@ -678,7 +678,7 @@ index 1537a76..24e1276 100644
  	struct buffer_head *dir_block = NULL;
  	struct ext4_dir_entry_2 *de;
  	ext4_lblk_t block = 0;
-@@ -2972,7 +3062,11 @@ int ext4_init_new_dir(handle_t *handle, struct inode *dir,
+@@ -2983,7 +3072,11 @@ int ext4_init_new_dir(handle_t *handle, struct inode *dir,
  	if (IS_ERR(dir_block))
  		return PTR_ERR(dir_block);
  	de = (struct ext4_dir_entry_2 *)dir_block->b_data;
@@ -691,7 +691,7 @@ index 1537a76..24e1276 100644
  	set_nlink(inode, 2);
  	if (csum_size)
  		ext4_initialize_dirent_tail(dir_block, blocksize);
-@@ -2987,6 +3081,29 @@ out:
+@@ -2998,6 +3091,29 @@ out:
  	return err;
  }
  
@@ -721,7 +721,7 @@ index 1537a76..24e1276 100644
  static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
  {
  	handle_t *handle;
-@@ -3013,7 +3130,7 @@ retry:
+@@ -3024,7 +3140,7 @@ retry:
  
  	inode->i_op = &ext4_dir_inode_operations;
  	inode->i_fop = &ext4_dir_operations;
@@ -731,10 +731,10 @@ index 1537a76..24e1276 100644
  		goto out_clear_inode;
  	err = ext4_mark_inode_dirty(handle, inode);
 diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index 6c33a10..59b87b4 100644
+index 1392659..e787f88 100644
 --- a/fs/ext4/super.c
 +++ b/fs/ext4/super.c
-@@ -1719,7 +1719,7 @@ enum {
+@@ -1724,7 +1724,7 @@ enum {
  	Opt_inlinecrypt,
  	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
  	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_jqfmt_vfsv1, Opt_quota,
@@ -743,7 +743,7 @@ index 6c33a10..59b87b4 100644
  	Opt_usrquota, Opt_grpquota, Opt_prjquota, Opt_i_version,
  	Opt_dax, Opt_dax_always, Opt_dax_inode, Opt_dax_never,
  	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_warn_on_error,
-@@ -1803,6 +1803,7 @@ static const match_table_t tokens = {
+@@ -1808,6 +1808,7 @@ static const match_table_t tokens = {
  	{Opt_nolazytime, "nolazytime"},
  	{Opt_debug_want_extra_isize, "debug_want_extra_isize=%u"},
  	{Opt_nodelalloc, "nodelalloc"},
@@ -751,7 +751,7 @@ index 6c33a10..59b87b4 100644
  	{Opt_removed, "mblk_io_submit"},
  	{Opt_removed, "nomblk_io_submit"},
  	{Opt_block_validity, "block_validity"},
-@@ -2043,6 +2044,7 @@ static const struct mount_opts {
+@@ -2048,6 +2049,7 @@ static const struct mount_opts {
  	{Opt_usrjquota, 0, MOPT_Q | MOPT_STRING},
  	{Opt_grpjquota, 0, MOPT_Q | MOPT_STRING},
  	{Opt_offusrjquota, 0, MOPT_Q},

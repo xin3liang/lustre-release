@@ -17,8 +17,8 @@ kernel_debuginfo_location() {
 	local distro=${DISTRO^^}
     # convert OEYYMM.SPx to openEuler-YY.MM-LTS-SPx
     distro=$(echo $distro | sed -E -e 's/OE/openEuler-/' \
-                -e 's/([0-9]{2})([0-9]{2})/\1.\2-/' \
-                -e 's/.(SP[0-9]+)/LTS-\1/')
+                -e 's/([0-9]{2})([0-9]{2})/\1.\2-LTS/' \
+                -e 's/.(SP[0-9]+)/-\1/')
 
 	echo "${base_url}/${distro}/update/$TARGET_ARCH/Packages"
 }
