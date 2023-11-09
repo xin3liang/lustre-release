@@ -8,7 +8,7 @@ oe2003/ext4-mballoc-extra-checks.patch
 ubuntu18/ext4-hash-indexed-dir-dotdot-update.patch
 rhel8.1/ext4-kill-dx-root.patch
 oe2003/ext4-mballoc-pa-free-mismatch.patch
-linux-5.4/ext4-data-in-dirent.patch
+oe2003/ext4-data-in-dirent.patch
 rhel8/ext4-nocmtime.patch
 base/ext4-htree-lock.patch
 oe2003/ext4-pdirop.patch
