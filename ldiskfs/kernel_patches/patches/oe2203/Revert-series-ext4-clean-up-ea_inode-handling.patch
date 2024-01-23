@@ -1,4 +1,4 @@
-From 7bd3c4c17a9734e8b7ebed5495d5a4b4e1ee667d Mon Sep 17 00:00:00 2001
+From bd0a990771a934482be48df02465c35917cbbba5 Mon Sep 17 00:00:00 2001
 From: Xinliang Liu <xinliang.liu@linaro.org>
 Date: Fri, 15 Dec 2023 08:39:35 +0000
 Subject: [PATCH] Revert series "ext4: clean up ea_inode handling"
@@ -66,10 +66,10 @@ index 25a6e1eb6811..210dcad8b82d 100644
  
  extern struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 0757f6a6455f..d45ea81a64dc 100644
+index 412af3c5fde4..29ac7c77096d 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -4813,24 +4813,6 @@ static inline void ext4_inode_set_iversion_queried(struct inode *inode, u64 val)
+@@ -4814,24 +4814,6 @@ static inline void ext4_inode_set_iversion_queried(struct inode *inode, u64 val)
  		inode_set_iversion_queried(inode, val);
  }
  
@@ -94,7 +94,7 @@ index 0757f6a6455f..d45ea81a64dc 100644
  struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
  			  ext4_iget_flags flags, const char *function,
  			  unsigned int line)
-@@ -4839,7 +4821,6 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
+@@ -4840,7 +4822,6 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
  	struct ext4_inode *raw_inode;
  	struct ext4_inode_info *ei;
  	struct inode *inode;
@@ -102,7 +102,7 @@ index 0757f6a6455f..d45ea81a64dc 100644
  	journal_t *journal = EXT4_SB(sb)->s_journal;
  	long ret;
  	loff_t size;
-@@ -4863,14 +4844,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
+@@ -4864,14 +4845,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
  	inode = iget_locked(sb, ino);
  	if (!inode)
  		return ERR_PTR(-ENOMEM);
@@ -118,10 +118,10 @@ index 0757f6a6455f..d45ea81a64dc 100644
  
  	ei = EXT4_I(inode);
  	iloc.bh = NULL;
-@@ -5139,9 +5114,10 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
- 	if (IS_CASEFOLDED(inode) && !ext4_has_feature_casefold(inode->i_sb))
- 		ext4_error_inode(inode, function, line, 0,
- 				 "casefold flag without casefold feature");
+@@ -5143,9 +5118,10 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
+ 		ret = -EFSCORRUPTED;
+ 		goto bad_inode;
+ 	}
 -	if ((err_str = check_igot_inode(inode, flags)) != NULL) {
 -		ext4_error_inode(inode, function, line, 0, err_str);
 -		ret = -EFSCORRUPTED;

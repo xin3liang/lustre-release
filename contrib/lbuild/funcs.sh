@@ -229,6 +229,7 @@ autodetect_target() {
 	  oe2203) target="5.10-oe2203";;
        oe2203.sp1) target="5.10-oe2203sp1";;
        oe2203.sp2) target="5.10-oe2203sp2";;
+       oe2203.sp3) target="5.10-oe2203sp3";;
              *)   fatal 1 "I don't know what distro $distro is.\nEither update autodetect_target() or use the --target argument.";;
     esac
 
