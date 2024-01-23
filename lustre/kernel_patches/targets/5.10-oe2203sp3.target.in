@@ -1,5 +1,5 @@
 lnxmaj="5.10.0"
-lnxrel="136.51.0.130.oe2203sp1"
+lnxrel="184.0.0.97.oe2203sp3"
 
 KERNEL_SRPM=kernel-${lnxmaj}-${lnxrel}.src.rpm
 SERIES=""
