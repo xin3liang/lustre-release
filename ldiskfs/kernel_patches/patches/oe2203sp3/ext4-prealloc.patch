@@ -1,6 +1,6 @@
-From e64e4f631ac4aaa7fbaa97bcae213d32cb8fd6e3 Mon Sep 17 00:00:00 2001
+From 92e6d50db5af32862f796737d2531f691a07e6f4 Mon Sep 17 00:00:00 2001
 From: Xinliang Liu <xinliang.liu@linaro.org>
-Date: Mon, 27 Nov 2023 03:23:32 +0000
+Date: Thu, 22 Feb 2024 03:41:24 +0000
 Subject: [PATCH] ext4: prealloc
 
 Signed-off-by: Xinliang Liu <xinliang.liu@linaro.org>
@@ -12,10 +12,10 @@ Signed-off-by: Xinliang Liu <xinliang.liu@linaro.org>
  4 files changed, 182 insertions(+), 55 deletions(-)
 
 diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index 9e7dfc4..8a7df09 100644
+index 87bbd21..e6999b6 100644
 --- a/fs/ext4/ext4.h
 +++ b/fs/ext4/ext4.h
-@@ -1299,6 +1299,8 @@ extern void ext4_set_bits(void *bm, int cur, int len);
+@@ -1304,6 +1304,8 @@ extern void ext4_set_bits(void *bm, int cur, int len);
  /* Metadata checksum algorithm codes */
  #define EXT4_CRC32C_CHKSUM		1
  
@@ -24,7 +24,7 @@ index 9e7dfc4..8a7df09 100644
  /*
   * Structure of the super block
   */
-@@ -1534,11 +1536,13 @@ struct ext4_sb_info {
+@@ -1539,11 +1541,13 @@ struct ext4_sb_info {
  
  	/* tunables */
  	unsigned long s_stripe;
@@ -39,7 +39,7 @@ index 9e7dfc4..8a7df09 100644
  	unsigned int s_mb_group_prealloc;
  	unsigned int s_mb_max_inode_prealloc;
  	unsigned int s_max_dir_size_kb;
-@@ -2827,6 +2831,7 @@ int ext4_fc_record_regions(struct super_block *sb, int ino,
+@@ -2832,6 +2836,7 @@ int ext4_fc_record_regions(struct super_block *sb, int ino,
  			   int len, int replay);
  
  /* mballoc.c */
@@ -48,10 +48,10 @@ index 9e7dfc4..8a7df09 100644
  extern long ext4_mb_stats;
  extern long ext4_mb_max_to_scan;
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index b2aa0ed..bda409e 100644
+index f8c11bb..613a9be 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -2773,6 +2773,9 @@ static int ext4_writepages(struct address_space *mapping,
+@@ -2774,6 +2774,9 @@ static int ext4_writepages(struct address_space *mapping,
  						PAGE_SIZE >> inode->i_blkbits);
  	}
  
@@ -62,7 +62,7 @@ index b2aa0ed..bda409e 100644
  		range_whole = 1;
  
 diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
-index 929fc42..a7b5eb7 100644
+index bc25bdb..a965535 100644
 --- a/fs/ext4/mballoc.c
 +++ b/fs/ext4/mballoc.c
 @@ -2641,6 +2641,99 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
@@ -231,15 +231,14 @@ index 929fc42..a7b5eb7 100644
  
  	sb = ac->ac_sb;
  	sbi = EXT4_SB(sb);
-@@ -3513,13 +3625,14 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
+@@ -3513,12 +3625,13 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
  {
  	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
  	struct ext4_super_block *es = sbi->s_es;
 -	int bsbits, max;
+-	loff_t size, start_off, end;
 +	int bsbits, i, wind;
- 	ext4_lblk_t end;
--	loff_t size, start_off;
-+	loff_t size;
++	loff_t size, end;
  	loff_t orig_size __maybe_unused;
  	ext4_lblk_t start;
  	struct ext4_inode_info *ei = EXT4_I(ac->ac_inode);
@@ -248,7 +247,7 @@ index 929fc42..a7b5eb7 100644
  
  	/* do normalize only data requests, metadata requests
  	   do not need preallocation */
-@@ -3548,51 +3661,46 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
+@@ -3547,51 +3660,46 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
  	size = size << bsbits;
  	if (size < i_size_read(ac->ac_inode))
  		size = i_size_read(ac->ac_inode);
@@ -337,7 +336,7 @@ index 929fc42..a7b5eb7 100644
  
  	/*
  	 * For tiny groups (smaller than 8MB) the chosen allocation
-@@ -3698,7 +3806,6 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
+@@ -3699,7 +3807,6 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
  			 (unsigned long) ac->ac_o_ex.fe_logical);
  		BUG();
  	}
@@ -345,7 +344,7 @@ index 929fc42..a7b5eb7 100644
  
  	/* now prepare goal request */
  
-@@ -4735,11 +4842,19 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
+@@ -4732,11 +4839,19 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
  
  	/* don't use group allocation for large files */
  	size = max(size, isize);
