@@ -14,7 +14,7 @@ rhel8/ext4-nocmtime.patch
 base/ext4-htree-lock.patch
 oe2203/ext4-pdirop.patch
 linux-5.8/ext4-max-dir-size.patch
-linux-5.8/ext4-corrupted-inode-block-bitmaps-handling-patches.patch
+oe2203sp3/ext4-corrupted-inode-block-bitmaps-handling-patches.patch
 linux-5.10/ext4-give-warning-with-dir-htree-growing.patch
 ubuntu18/ext4-jcb-optimization.patch
 linux-5.10/ext4-attach-jinode-in-writepages.patch
